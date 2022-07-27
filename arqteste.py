@@ -1,29 +1,24 @@
 import os, shutil
-from time import sleep
+from time import sleep, time
 from functions import *
-from PyPDF2 import PdfFileWriter, PdfFileMerger, PdfFileReader
+from PyPDF2 import PdfFileWriter, PdfFileReader
 from PDF import Pdf
 import subprocess
 import math
 from multiprocessing import Process
+import multiprocessing
 
-pdfFileObj = open('exemplos_pdf\\Cartilha Copevid Promotores.pdf', 'rb') 
-pdfReader = PdfFileReader(pdfFileObj) 
-n = pdfReader.numPages
-
-def sep_pdf(inputpdf, limite: int) -> None:
+def sep_pdf(inputpdf: PdfFileReader, limite: int) -> None:
     num_pages = inputpdf.numPages
     for i in range(0, num_pages, limite):
         initial = i
         output = PdfFileWriter()
-
         for j in range(i, i + limite):
             if j == num_pages:
                 break
             else:
                 output.addPage(inputpdf.getPage(j))
                 final = j
-
         # Cria pasta temp se n existir
         if not os.path.exists('temp'):
             os.makedirs('temp')
@@ -31,7 +26,8 @@ def sep_pdf(inputpdf, limite: int) -> None:
         with open(".\\temp\\document-page{}-{}.pdf".format(initial, final), "wb") as outputStream:
             output.write(outputStream)
 
-def execute_compression(inputpdfs, path_output: str = '.\\compressed') -> None:
+def execute_compression(inputpdfs:list, path_output: str = '.\\compressed') -> None:
+    """" Recebe um lista de pdfs e comprime cada um deles utilizando o ghostscript """
     for inputpdf in inputpdfs:
         name_arq = inputpdf.split("\\")[-1]
         if not os.path.exists('compressed'):
@@ -42,49 +38,40 @@ def execute_compression(inputpdfs, path_output: str = '.\\compressed') -> None:
             f'{inputpdf}'
         ])
 
-sep_pdf(pdfReader, 10)
-# shutil.rmtree('temp')
-
-# for item in os.listdir('temp'):
-#     execute_compression(f'.\\temp\\{item}')
-
-# list_pdfs = []
-# for item in os.listdir('compressed'):
-#     pdf = Pdf('.\\compressed\\' + item)
-#     list_pdfs.append(pdf)
-# merge_pdf(list_pdfs)
-# shutil.rmtree('compressed')
-
-
-lista = os.listdir('temp')
 def listasMenores(lst, n):
     for i in range(0, len(lst), n):
         yield lst[i:i + n]
     return lst
 
-n = math.ceil(len(lista)/3)
-listasDivididas = list(listasMenores(lista, n))
-# print(listasDivididas)
+if __name__ == '__main__':
+    pdfFileObj = open('exemplos_pdf\\Cartilha Copevid Promotores.pdf', 'rb') 
+    pdfReader = PdfFileReader(pdfFileObj) 
+    sep_pdf(pdfReader, 10)
+    lista = list(map(lambda x: ".\\temp\\" + x, os.listdir('temp')))
 
-lista_process_1 = [i for i in listasDivididas[0]]
-lista_process_2 = [i for i in listasDivididas[1]]
-lista_process_3 = [i for i in listasDivididas[2]]
+    n = math.ceil(len(lista)/3)
+    listasDivididas = list(listasMenores(lista, n))
+    print(len(listasDivididas))
+    processos = []
+    time_start = time()
+    for item in listasDivididas:
+        p = Process(target=execute_compression, args=(item,))
+        p.start()
+        processos.append(p)
+    while True:
+        validator = [process.is_alive() for process in processos]
+        print(validator)
+        if (not any(validator)) == False:
+            pass
+        else:
+            break
+    time_end = time()
+    print(f'Tempo de execução: {time_end - time_start}')
 
-# p1 = Process(target=execute_compression, args=(lista_process_1,))
-# p2 = Process(target=execute_compression, args=(lista_process_2,))
-# p3 = Process(target=execute_compression, args=(lista_process_3,))
-
-# p1.start()
-# p2.start()
-# p3.start()
-
-execute_compression(lista_process_1)
-execute_compression(lista_process_2)
-execute_compression(lista_process_3)
-
-list_pdfs = []
-for item in os.listdir('compressed'):
-    pdf = Pdf('.\\compressed\\' + item)
-    list_pdfs.append(pdf)
-merge_pdf(list_pdfs)
-shutil.rmtree('compressed')
+    list_pdfs = []
+    for item in os.listdir('compressed'):
+        pdf = Pdf('.\\compressed\\' + item)
+        list_pdfs.append(pdf)
+    merge_pdf(list_pdfs)
+    shutil.rmtree('compressed')
+    shutil.rmtree('temp')
