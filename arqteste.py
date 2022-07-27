@@ -6,7 +6,6 @@ from PDF import Pdf
 import subprocess
 import math
 from multiprocessing import Process
-import multiprocessing
 
 def sep_pdf(inputpdf: PdfFileReader, limite: int) -> None:
     num_pages = inputpdf.numPages
@@ -51,20 +50,22 @@ if __name__ == '__main__':
 
     n = math.ceil(len(lista)/3)
     listasDivididas = list(listasMenores(lista, n))
-    print(len(listasDivididas))
-    processos = []
+
+    lista_process_1 = [i for i in listasDivididas[0]]
+    lista_process_2 = [i for i in listasDivididas[1]]
+    lista_process_3 = [i for i in listasDivididas[2]]
+
+    p1 = Process(target=execute_compression, args=(lista_process_1,))
+    p2 = Process(target=execute_compression, args=(lista_process_2,))
+    p3 = Process(target=execute_compression, args=(lista_process_3,))
+
     time_start = time()
-    for item in listasDivididas:
-        p = Process(target=execute_compression, args=(item,))
-        p.start()
-        processos.append(p)
-    while True:
-        validator = [process.is_alive() for process in processos]
-        print(validator)
-        if (not any(validator)) == False:
-            pass
-        else:
-            break
+    p1.start()
+    p2.start()
+    p3.start()
+    p1.join()
+    p2.join()
+    p3.join()
     time_end = time()
     print(f'Tempo de execução: {time_end - time_start}')
 
