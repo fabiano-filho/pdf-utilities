@@ -23,6 +23,7 @@ import subprocess
 import os.path
 import sys
 import shutil
+import multiprocessing
 
 def compress(input_file_path, output_file_path, power=0):
     """Function to compress PDF via Ghostscript command line interface"""
@@ -48,17 +49,18 @@ def compress(input_file_path, output_file_path, power=0):
     gs = get_ghostscript_path()
     print("Compress PDF...")
     initial_size = os.path.getsize(input_file_path)
+    n_cpus = multiprocessing.cpu_count() - 1 
+    cmd_multicore = f'-dNumRenderingThreads={n_cpus}' if n_cpus > 1 else ''
     subprocess.call([gs, '-sDEVICE=pdfwrite', '-dCompatibilityLevel=1.4',
-                    '-dDownsampleColorImages=true',
-                    '-dDownsampleGrayImages=true',
-                    '-dDownsampleMonoImages=true',
-                    '-dColorImageResolution=60',
-                    '-dGrayImageResolution=60',
-                    '-dMonoImageResolution=60',
+                    cmd_multicore,
+                    '-dBandHeight=100',
+                    '-dBandBufferSpace=500000000',
+                    '-sBandListStorage=memory',
+                    '-dBufferSpace=1000000000',
                     '-dPDFSETTINGS={}'.format(quality[power]),
                     '-dNOPAUSE', '-dQUIET', '-dBATCH',
                     '-sOutputFile={}'.format(output_file_path),
-                     input_file_path]
+                    input_file_path]
     )
     final_size = os.path.getsize(output_file_path)
     ratio = 1 - (final_size / initial_size)

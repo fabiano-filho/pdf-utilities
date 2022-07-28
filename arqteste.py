@@ -1,3 +1,4 @@
+import multiprocessing
 import os, shutil
 from time import sleep, time
 from functions import *
@@ -9,6 +10,9 @@ from multiprocessing import Process
 
 def sep_pdf(inputpdf: PdfFileReader, limite: int) -> None:
     num_pages = inputpdf.numPages
+    if limite > num_pages:
+        n = 3 if num_pages > 3 else 1
+        limite = math.ceil(num_pages / n)
     for i in range(0, num_pages, limite):
         initial = i
         output = PdfFileWriter()
@@ -45,30 +49,25 @@ def listasMenores(lst, n):
 if __name__ == '__main__':
     pdfFileObj = open('exemplos_pdf\\Cartilha Copevid Promotores.pdf', 'rb') 
     pdfReader = PdfFileReader(pdfFileObj) 
-    sep_pdf(pdfReader, 10)
+    sep_pdf(pdfReader, 15)
     lista = list(map(lambda x: ".\\temp\\" + x, os.listdir('temp')))
 
-    n = math.ceil(len(lista)/3)
+    n = math.ceil(len(lista) / 3)
     listasDivididas = list(listasMenores(lista, n))
 
-    lista_process_1 = [i for i in listasDivididas[0]]
-    lista_process_2 = [i for i in listasDivididas[1]]
-    lista_process_3 = [i for i in listasDivididas[2]]
-
-    p1 = Process(target=execute_compression, args=(lista_process_1,))
-    p2 = Process(target=execute_compression, args=(lista_process_2,))
-    p3 = Process(target=execute_compression, args=(lista_process_3,))
-
+    processos = []
     time_start = time()
-    p1.start()
-    p2.start()
-    p3.start()
-    p1.join()
-    p2.join()
-    p3.join()
+    for item in listasDivididas:
+        p = Process(target=execute_compression, args=(item,))
+        p.start()
+        processos.append(p)
+
+    for p in processos:
+        p.join()
+
     time_end = time()
     print(f'Tempo de execução: {time_end - time_start}')
-
+ 
     list_pdfs = []
     for item in os.listdir('compressed'):
         pdf = Pdf('.\\compressed\\' + item)
